@@ -41,6 +41,8 @@ await server.start();
 app.use("/graphql", expressMiddleware(server));
 
 // start the Express server
-app.listen(PORT, () => {
-  console.log(`Server is running on port: ${PORT}`);
-});
+// app.listen(PORT, () => {
+//   console.log(`Server is running on port: ${PORT}`);
+// });
+
+app.listen({ port: PORT, host: '0.0.0.0' });

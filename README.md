@@ -1,20 +1,42 @@
-# PPBE
+# PeacePad Backend - Local Kubernetes Deployment (Minikube)
 
+## Prerequisites
 
+- Docker installed and running
+- Minikube installed and started with Docker driver
+- You are in the backend project directory
 
+## Steps
 
+1. Start Minikube with Docker driver
 
-## How to Run
-update .env file 
-npm run start
+minikube start --driver=docker
+kubectl get nodes
 
+2. Point Docker to use Minikube’s Docker daemon
 
-## List of Dependencies
-"@types/node": "^22.14.1",
-"tsup": "^8.4.0",(for handling files in dist build directory)
-"typescript": "^5.8.3"
-"@apollo/server": "^4.12.0",
-"@apollo/subgraph": "^2.10.1",
-"@prisma/client": "^6.6.0",
-"graphql": "^16.10.0",
-"graphql-tag": "^2.12.6"
+eval $(minikube docker-env)
+
+3. Build the Docker image
+
+docker build -t peacepad-backend:latest .
+
+4. Apply backend deployment and service
+
+kubectl apply -f backend-deployment.yaml
+kubectl apply -f backend-service.yaml
+
+5. Restart the deployment (if rebuilding image)
+
+kubectl rollout restart deployment peacepad-backend
+
+6. Access the service locally
+
+minikube service peacepad-backend-service
+
+> if it's working you should be able to navigate and see dashboard at /graphql endpoint(i.e. http://127.0.0.1:64XXX/graphql)
+
+7. To view logs for debugging
+
+kubectl get pods
+kubectl logs <your-backend-pod-name>
