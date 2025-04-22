@@ -1,6 +1,7 @@
 // src/index.ts
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import gql from "graphql-tag";
 import { ApolloServer } from "@apollo/server";
 import { buildSubgraphSchema } from "@apollo/subgraph";
@@ -12,10 +13,11 @@ var prisma = new PrismaClient();
 var prismaClient_default = prisma;
 
 // src/resolvers/userResolvers.ts
+import jwt from "jsonwebtoken";
+var JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 var userResolvers = {
   User: {
     id: (parent) => parent.id
-    // Prisma always returns `id`, no `_id`
   },
   Query: {
     async user(_, { id }) {
@@ -25,13 +27,52 @@ var userResolvers = {
     },
     async users() {
       return await prismaClient_default.user.findMany();
+    },
+    async me(_, __, context) {
+      try {
+        const token = context.req.cookies?.token;
+        if (!token) return null;
+        const decoded = jwt.verify(token, JWT_SECRET);
+        return await prismaClient_default.user.findUnique({ where: { id: decoded.userId } });
+      } catch (err) {
+        console.error("[me] Error:", err);
+        return null;
+      }
     }
   },
   Mutation: {
-    async createUser(_, { email }) {
+    async signin(_, { email, password }, context) {
+      try {
+        const user = await prismaClient_default.user.findUnique({ where: { email } });
+        console.log("signin....... with user: ", user);
+        if (!user || user.password !== password) {
+          throw new Error("Invalid credentials");
+        }
+        const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
+        context.res.cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.ENV === "production",
+          sameSite: "lax",
+          maxAge: 7 * 24 * 60 * 60 * 1e3
+          // 7 days
+        });
+        console.log("signin....... with token: ", token);
+        return user;
+      } catch (err) {
+        console.error("[signin] Error:", err);
+        throw new Error("Signin failed");
+      }
+    },
+    async createUser(_, args) {
       try {
         const newUser = await prismaClient_default.user.create({
-          data: { email }
+          data: {
+            name: args.name,
+            birthday: args.birthday,
+            email: args.email,
+            phone: args.phone,
+            password: args.password
+          }
         });
         return newUser;
       } catch (error) {
@@ -109,8 +150,9 @@ var __filename2 = fileURLToPath(import.meta.url);
 var __dirname2 = dirname(__filename2);
 var PORT = process.env.PORT || 4e3;
 var app = express();
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 var schemaPath = resolve(__dirname2, "schema.graphql");
 console.log("\u{1F4C4} Loading schema from:", schemaPath);
 var typeDefs = gql(readFileSync(schemaPath, "utf-8"));
@@ -118,8 +160,9 @@ var server = new ApolloServer({
   schema: buildSubgraphSchema({ typeDefs, resolvers: resolvers_default })
 });
 await server.start();
-app.use("/graphql", expressMiddleware(server));
-app.listen(PORT, () => {
-  console.log(`Server is running on port: ${PORT}`);
-});
+app.use("/graphql", expressMiddleware(server, {
+  context: async ({ req, res }) => ({ req, res })
+  // ✅ Allow access to cookies and res object
+}));
+app.listen({ port: PORT, host: "0.0.0.0" });
 //# sourceMappingURL=index.js.map

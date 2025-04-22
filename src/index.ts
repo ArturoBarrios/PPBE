@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 
 //highlight-start
 import gql from "graphql-tag";
@@ -18,8 +19,9 @@ const __dirname = dirname(__filename);
 const PORT = process.env.PORT || 4000;
 const app = express();
 
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 // ✅ This now always resolves the actual path correctly
 const schemaPath = resolve(__dirname, "schema.graphql");
@@ -38,11 +40,10 @@ const server = new ApolloServer({
 await server.start();
 //highlight-end
 
-app.use("/graphql", expressMiddleware(server));
+app.use("/graphql", expressMiddleware(server, {
+    context: async ({ req, res }) => ({ req, res }) // ✅ Allow access to cookies and res object
+  }));
 
-// start the Express server
-// app.listen(PORT, () => {
-//   console.log(`Server is running on port: ${PORT}`);
-// });
+
 
 app.listen({ port: PORT, host: '0.0.0.0' });

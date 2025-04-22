@@ -1,17 +1,34 @@
 type User {
   id: String
-  email: String
   name: String
+  email: String
+  phone: String
+  birthday: String
+  password: String
 }
 
 type Query {
   user(id: String!): User
   users: [User]
+  me: User
 }
 
 type Mutation {
-  createUser(email: String!): User
+   signin(email: String!, password: String!): User
+   createUser(
+      name: String
+      birthday: String
+      email: String!
+      phone: String
+      password: String
+    ): User
   updateUser(id: String!, name: String, email: String): User
   deleteUser(id: String!): Boolean
   sendTestEmail(to: String!): Boolean
+  createCheckoutSession: CheckoutSession!
+}
+
+type CheckoutSession {
+  sessionId: String!
+  url: String!
 }
